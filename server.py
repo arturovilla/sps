@@ -1,53 +1,45 @@
 import socket
-
-# while True:
-#     client_socket, client_addr = server_socket.accept()
-#     print(f"Client Address: {client_addr}")
-#     request = parseRequest(client_socket.recv(1024))
-#     print(request)
-#     request.split('\n')
-
-
-
-
+from typing import Callable
+import threading
 
 class Server:
     def __init__(self, host: str, port: int):
-    # Socket setup
-        server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        server_socket.bind((host,port))
-        server_socket.listen(5)
-        print(f"Listening on {host}:{port}.")
+        # Socket setup
+        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.host = host
+        self.port = port
+        self.routes = {}
 
+    def start(self):
+        self.server_socket.bind((self.host, self.port))
+        self.server_socket.listen(5)
+        print(f"Server is listening on {self.host}:{self.port}.")
 
-    # def get():
-    #     print()
-    
+        while True:
+            conn, addr = self.server_socket.accept()
+            print(f"Connection received from {addr}")
+            threading.Thread(target=self.handle_request, args=(conn,)).start()
 
-    # def head():
-    #     print()
-    
+    def handle_request(self, conn):
+        request = conn.recv(1024).decode()
+        path = request.split(' ')[1] if ' ' in request else '/'
 
-    # def post():
-    #     print()
+        if path in self.routes:
+            response = self.routes[path]()
+            conn.sendall(f"HTTP/1.1 200 OK\n\n{response}".encode())
+        else:
+            conn.sendall(b"HTTP/1.1 404 Not Found\n\nPath not found")
+        conn.close()
+        
+    def get(self, func, path: str = "/"):
+        self.routes[path] = func  
 
-
-    # def put():
-    #     print()
-
-    
-    # def patch():
-    #     print()
-
-    
-    # def delete():
-    #     print()
-
-    
-    # def options():
-    #     print()
-
+# Define an example function
+def someFunction():
+    return "Hello from /test!"
 
 if __name__ == '__main__':
-    server = Server("0.0.0.0",3000)
+    server = Server("0.0.0.0", 3000)
+    server.get(someFunction, "/test")
+    server.start()
